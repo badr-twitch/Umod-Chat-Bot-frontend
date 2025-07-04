@@ -138,7 +138,84 @@ document.addEventListener('DOMContentLoaded', function () {
         appendMessage("Pour prendre rendez-vous, quel est votre <b>nom</b> ?", 'bot');
     }
 
-    // Update handleRdvFormInput to use the pickers
+    // No import for flatpickr, use global from CDN
+    function showDatePicker() {
+        let dateInput = document.getElementById('rdv-date-input');
+        if (!dateInput) {
+            dateInput = document.createElement('input');
+            dateInput.id = 'rdv-date-input';
+            dateInput.className = 'user-input';
+            dateInput.placeholder = 'Choisissez une date...';
+            document.querySelector('.chat-input-container').prepend(dateInput);
+        }
+        dateInput.style.display = 'block';
+        userInput.style.display = 'none';
+        flatpickr(dateInput, {
+            locale: 'fr',
+            minDate: "today",
+            dateFormat: "Y-m-d",
+            disable: [
+                function(date) { return (date.getDay() === 0 || date.getDay() === 6); }
+            ],
+            onChange: function(selectedDates, dateStr) {
+                rdvFormData.date = dateStr;
+                dateInput.style.display = 'none';
+                userInput.style.display = 'block';
+                rdvFormStep = 6;
+                appendMessage("À quelle <b>heure</b> souhaitez-vous votre rendez-vous ?", 'bot');
+                showTimePicker(); // Immediately show the time picker after date selection
+            }
+        });
+    }
+
+    function showTimePicker() {
+        let timeInput = document.getElementById('rdv-time-input');
+        if (!timeInput) {
+            timeInput = document.createElement('input');
+            timeInput.id = 'rdv-time-input';
+            timeInput.className = 'user-input';
+            timeInput.placeholder = 'Choisissez une heure...';
+            document.querySelector('.chat-input-container').prepend(timeInput);
+        }
+        timeInput.style.display = 'block';
+        userInput.style.display = 'none';
+        flatpickr(timeInput, {
+            locale: 'fr',
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: "H:i",
+            time_24hr: true,
+            minTime: "09:00",
+            maxTime: "18:00",
+            minuteIncrement: 30,
+            onClose: function(selectedDates, timeStr) {
+                rdvFormData.heure = timeStr;
+                timeInput.style.display = 'none';
+                userInput.style.display = 'block';
+                appendMessage("Merci ! Nous envoyons votre demande de rendez-vous...", 'bot');
+                // Send to backend
+                fetch('http://localhost:3001/book-appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rdvFormData)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        appendMessage("Votre rendez-vous a bien été enregistré dans notre agenda. Vous serez contacté prochainement ! 😊", 'bot');
+                    } else {
+                        appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
+                    }
+                    resetRdvForm();
+                })
+                .catch(() => {
+                    appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
+                    resetRdvForm();
+                });
+            }
+        });
+    }
+
     function handleRdvFormInput(text) {
         if (rdvFormStep === 1) {
             rdvFormData.nom = text;
@@ -155,33 +232,12 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (rdvFormStep === 4) {
             rdvFormData.numero = text;
             rdvFormStep = 5;
-            appendMessage("Merci ! Pour finir, à quelle <b>date</b> souhaitez-vous votre rendez-vous ? (ex: 2024-06-15)", 'bot');
+            appendMessage("Merci ! Pour finir, choisissez une <b>date</b> pour votre rendez-vous :", 'bot');
+            showDatePicker();
         } else if (rdvFormStep === 5) {
-            rdvFormData.date = text;
-            rdvFormStep = 6;
-            appendMessage("À quelle <b>heure</b> souhaitez-vous votre rendez-vous ? (ex: 14:30)", 'bot');
+            // Date is picked via showDatePicker, time picker is now shown automatically
         } else if (rdvFormStep === 6) {
-            rdvFormData.heure = text;
-            appendMessage("Merci ! Nous envoyons votre demande de rendez-vous...", 'bot');
-            // Send to backend
-            fetch('http://localhost:3001/book-appointment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(rdvFormData)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    appendMessage("Votre rendez-vous a bien été enregistré dans notre agenda. Vous serez contacté prochainement ! 😊", 'bot');
-                } else {
-                    appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
-                }
-                resetRdvForm();
-            })
-            .catch(() => {
-                appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
-                resetRdvForm();
-            });
+            // Time is picked via showTimePicker
         }
     }
 
