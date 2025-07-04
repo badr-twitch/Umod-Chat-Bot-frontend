@@ -1,13 +1,5 @@
 // Enhanced ChatBot logic with avatars, typing indicator, and close/minimize functionality
 
-let appointmentState = null;
-let appointmentData = {};
-
-function resetAppointment() {
-    appointmentState = null;
-    appointmentData = {};
-}
-
 document.addEventListener('DOMContentLoaded', function () {
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
@@ -15,11 +7,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const chatbotContainer = document.getElementById('chatbot-container');
     const closeButton = document.getElementById('close-button');
     const minimizeButton = document.getElementById('minimize-button');
+    const bubble = document.getElementById('chatbot-bubble');
     let typingIndicator = null;
     let isMinimized = false;
 
+    // Show only the bubble at start
+    chatbotContainer.classList.remove('open', 'closing');
+    chatbotContainer.style.display = 'none';
+    bubble.style.display = 'flex';
+
+    bubble.onclick = function() {
+        chatbotContainer.style.display = 'flex';
+        // Force reflow to allow transition
+        void chatbotContainer.offsetWidth;
+        chatbotContainer.classList.add('open');
+        chatbotContainer.classList.remove('closing');
+        bubble.style.display = 'none';
+    };
+
     function createBotAvatar() {
-        // Simple animated SVG robot avatar
+        // Simple animated SVG robot avatar with a smile
         return `<span class="bot-avatar">
             <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="18" cy="18" r="16" fill="#2bb6a8"/>
@@ -27,7 +34,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 <ellipse cx="24" cy="18" rx="3" ry="4" fill="#fff"/>
                 <circle cx="12" cy="18" r="1.2" fill="#2bb6a8"/>
                 <circle cx="24" cy="18" r="1.2" fill="#2bb6a8"/>
-                <rect x="14" y="25" width="8" height="2" rx="1" fill="#fff"/>
+                <!-- Smiling mouth -->
+                <path d="M14 25 Q18 29 22 25" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
             </svg>
         </span>`;
     }
@@ -51,14 +59,9 @@ document.addEventListener('DOMContentLoaded', function () {
             ];
             const lowerText = text.toLowerCase();
             const hasContact = contactKeywords.some(keyword => lowerText.includes(keyword));
-            let messageHtml = `<div class=\"message-bubble\">${marked.parse(text)}</div>`;
+            let messageHtml = `<div class="message-bubble">${marked.parse(text)}</div>`;
             if (contactIntent || hasContact) {
-                messageHtml += `
-                  <div class='contact-link-container' style='margin-top:8px; display: flex; gap: 12px;'>
-                    <a href='https://umod.fr/nous-contacter/' target='_blank' class='contact-link' style='color:#2bb6a8;font-weight:600;text-decoration:underline;cursor:pointer;'>Nous Contacter</a>
-                    <button class='appointment-btn' style='color:#fff;background:#2bb6a8;border:none;padding:8px 16px;border-radius:6px;font-weight:600;cursor:pointer;'>Prendre un RDV</button>
-                  </div>
-                `;
+                messageHtml += `<div class='contact-link-container' style='margin-top:8px;'><a href='https://umod.fr/nous-contacter/' target='_blank' class='contact-link' style='color:#2bb6a8;font-weight:600;text-decoration:underline;cursor:pointer;'>Nous Contacter</a></div>`;
             }
             row.innerHTML = `
                 ${messageHtml}
@@ -79,20 +82,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 bubble.removeEventListener('animationend', handler);
             });
         }
-        // Add event listener for appointment button
-        const appointmentBtn = row.querySelector('.appointment-btn');
-        if (appointmentBtn) {
-            appointmentBtn.addEventListener('click', function() {
-                startAppointmentFlow();
-            });
-        }
         chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function startAppointmentFlow() {
-        appointmentState = 'nom';
-        appointmentData = {};
-        appendMessage("Pour prendre rendez-vous, quel est votre nom ?", 'bot');
     }
 
     // Show welcome message on load
@@ -125,12 +115,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!text) return;
         appendMessage(text, 'user');
         userInput.value = '';
-        if (appointmentState) {
-            handleAppointmentInput(text);
-            return;
-        }
         showTypingIndicator();
-        fetch('http://localhost:3001/chat', {
+        fetch('https://umod-chat-bot-backend.onrender.com/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text })
@@ -159,10 +145,12 @@ document.addEventListener('DOMContentLoaded', function () {
     closeButton.addEventListener('click', function (e) {
         e.stopPropagation();
         chatbotContainer.classList.add('closing');
+        chatbotContainer.classList.remove('open');
         setTimeout(() => {
             chatbotContainer.style.display = 'none';
             chatbotContainer.classList.remove('closing');
-        }, 300); // Match the CSS opacity transition duration
+            bubble.style.display = 'flex';
+        }, 350); // Match the CSS opacity/transform transition duration
     });
 
     // Minimize button logic
