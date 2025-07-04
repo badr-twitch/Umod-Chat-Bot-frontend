@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMOD ChatBot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="favicon_io.zip">
+    <link rel="stylesheet" href="ChatBot.css">
+</head>
+<body>
+    <div class="chatbot-container" id="chatbot-container">
+        <header class="logo" id="logo">
+            <div class="Title-Logo-container">
+                <img src="Logo-UMOD-removebg-preview.png" alt="UMOD Logo" class="umod-logo-img" />
+                <span class="support-assistant-title">Support Assistant</span>
+            </div>
+            <i class="fa-solid fa-chevron-down" id="minimize-button" title="Minimize chatbot" aria-label="Minimize chatbot"></i>
+            <i class="fa-solid fa-xmark" id="close-button" title="Close chatbot" aria-label="Close chatbot"></i>
+        </header>
+        <div class="chat-messages" id="chat-messages">
+        </div>
+        <div class="chat-input-container">
+            <input type="text" id="user-input" class="user-input" placeholder="Écrivez votre message...">
+            <button class="send-button" id="send-button"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="ChatBot.js"></script>
+</body>
+</html>
