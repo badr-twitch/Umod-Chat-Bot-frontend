@@ -1,5 +1,7 @@
 // Enhanced ChatBot logic with avatars, typing indicator, and close/minimize functionality
 
+// Remove flatpickr imports and functions
+
 document.addEventListener('DOMContentLoaded', function () {
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
@@ -60,19 +62,29 @@ document.addEventListener('DOMContentLoaded', function () {
             const lowerText = text.toLowerCase();
             const hasContact = contactKeywords.some(keyword => lowerText.includes(keyword));
             let messageHtml = `<div class="message-bubble">${marked.parse(text)}</div>`;
-            if (contactIntent || hasContact) {
-                messageHtml += `<div class='contact-link-container' style='margin-top:8px;'><a href='https://umod.fr/nous-contacter/' target='_blank' class='contact-link' style='color:#2bb6a8;font-weight:600;text-decoration:underline;cursor:pointer;'>Nous Contacter</a></div>`;
-            }
             row.innerHTML = `
                 ${messageHtml}
                 ${createBotAvatar()}
             `;
+            chatMessages.appendChild(row);
+            if (contactIntent || hasContact) {
+                // Insert the contact link as a new full-width row below the bot message row
+                const contactRow = document.createElement('div');
+                contactRow.className = 'message-row contact-link-row';
+                contactRow.style.width = '100%';
+                contactRow.innerHTML = `
+                    <div class='contact-link-container' style='margin: 8px 0 0 0; display: flex; flex-direction: column; gap: 10px;'>
+                        <button class='contact-action-btn' onclick="window.open('https://umod.fr/nous-contacter/', '_blank')">Nous Contacter</button>
+                        <button class='contact-action-btn rdv-button'>Prendre RDV</button>
+                    </div>`;
+                chatMessages.appendChild(contactRow);
+            }
         } else {
             row.innerHTML = `
                 <div class=\"message-bubble\">${text}</div>
             `;
+            chatMessages.appendChild(row);
         }
-        chatMessages.appendChild(row);
         // Add animation class to the message bubble
         const bubble = row.querySelector('.message-bubble');
         if (bubble) {
@@ -110,13 +122,90 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    let rdvFormActive = false;
+    let rdvFormStep = 0;
+    let rdvFormData = { nom: '', prenom: '', email: '', numero: '' };
+
+    function resetRdvForm() {
+        rdvFormActive = false;
+        rdvFormStep = 0;
+        rdvFormData = { nom: '', prenom: '', email: '', numero: '' };
+    }
+
+    function startRdvForm() {
+        rdvFormActive = true;
+        rdvFormStep = 1;
+        appendMessage("Pour prendre rendez-vous, quel est votre <b>nom</b> ?", 'bot');
+    }
+
+    // Update handleRdvFormInput to use the pickers
+    function handleRdvFormInput(text) {
+        if (rdvFormStep === 1) {
+            rdvFormData.nom = text;
+            rdvFormStep = 2;
+            appendMessage("Merci. Quel est votre <b>prénom</b> ?", 'bot');
+        } else if (rdvFormStep === 2) {
+            rdvFormData.prenom = text;
+            rdvFormStep = 3;
+            appendMessage("Merci. Quel est votre <b>email</b> ?", 'bot');
+        } else if (rdvFormStep === 3) {
+            rdvFormData.email = text;
+            rdvFormStep = 4;
+            appendMessage("Merci. Quel est votre <b>numéro de téléphone</b> ?", 'bot');
+        } else if (rdvFormStep === 4) {
+            rdvFormData.numero = text;
+            rdvFormStep = 5;
+            appendMessage("Merci ! Pour finir, à quelle <b>date</b> souhaitez-vous votre rendez-vous ? (ex: 2024-06-15)", 'bot');
+        } else if (rdvFormStep === 5) {
+            rdvFormData.date = text;
+            rdvFormStep = 6;
+            appendMessage("À quelle <b>heure</b> souhaitez-vous votre rendez-vous ? (ex: 14:30)", 'bot');
+        } else if (rdvFormStep === 6) {
+            rdvFormData.heure = text;
+            appendMessage("Merci ! Nous envoyons votre demande de rendez-vous...", 'bot');
+            // Send to backend
+            fetch('http://localhost:3001/book-appointment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rdvFormData)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    appendMessage("Votre rendez-vous a bien été enregistré dans notre agenda. Vous serez contacté prochainement ! 😊", 'bot');
+                } else {
+                    appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
+                }
+                resetRdvForm();
+            })
+            .catch(() => {
+                appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
+                resetRdvForm();
+            });
+        }
+    }
+
+    // Add event delegation for Prendre RDV button
+    chatMessages.addEventListener('click', function(e) {
+        if (e.target.classList.contains('rdv-button')) {
+            if (!rdvFormActive) {
+                startRdvForm();
+            }
+        }
+    });
+
+    // Update handleSend to support RDV form flow
     function handleSend() {
         const text = userInput.value.trim();
         if (!text) return;
         appendMessage(text, 'user');
         userInput.value = '';
+        if (rdvFormActive) {
+            handleRdvFormInput(text);
+            return;
+        }
         showTypingIndicator();
-        fetch('https://umod-chat-bot-backend.onrender.com/chat', {
+        fetch('http://localhost:3001/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text })
