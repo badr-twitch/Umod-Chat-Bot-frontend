@@ -319,53 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Close button logic
-    // Draggable logic for the chatbot container
-    let isDragging = false;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
-    let initialPosition = { right: 20, bottom: 20 };
-
-    function setInitialPosition() {
-        chatbotContainer.style.right = initialPosition.right + 'px';
-        chatbotContainer.style.bottom = initialPosition.bottom + 'px';
-        chatbotContainer.style.left = '';
-        chatbotContainer.style.top = '';
-    }
-
-    setInitialPosition();
-
-    chatbotContainer.addEventListener('mousedown', function (e) {
-        // Only start drag if not clicking on input or button
-        if (e.target.closest('.chat-input-container') || e.target.closest('button') || e.target.closest('input')) return;
-        isDragging = true;
-        // Get mouse position relative to the container
-        const rect = chatbotContainer.getBoundingClientRect();
-        dragOffsetX = e.clientX - rect.left;
-        dragOffsetY = e.clientY - rect.top;
-        chatbotContainer.style.transition = 'none';
-        document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', function (e) {
-        if (!isDragging) return;
-        // Move the container
-        let left = e.clientX - dragOffsetX;
-        let top = e.clientY - dragOffsetY;
-        chatbotContainer.style.left = left + 'px';
-        chatbotContainer.style.top = top + 'px';
-        chatbotContainer.style.right = '';
-        chatbotContainer.style.bottom = '';
-    });
-
-    document.addEventListener('mouseup', function () {
-        if (isDragging) {
-            isDragging = false;
-            chatbotContainer.style.transition = '';
-            document.body.style.userSelect = '';
-        }
-    });
-
-    // When closing, reset position
+    // Only keep the original close button logic and position reset if needed
     closeButton.addEventListener('click', function (e) {
         e.stopPropagation();
         chatbotContainer.classList.add('closing');
@@ -374,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function () {
             chatbotContainer.style.display = 'none';
             chatbotContainer.classList.remove('closing');
             bubble.style.display = 'flex';
-            setInitialPosition(); // Reset position on close
+            // setInitialPosition(); // Reset position on close - REMOVED
         }, 350);
     });
 
