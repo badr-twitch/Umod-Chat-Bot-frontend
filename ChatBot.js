@@ -125,11 +125,15 @@ document.addEventListener('DOMContentLoaded', function () {
     let rdvFormActive = false;
     let rdvFormStep = 0;
     let rdvFormData = { nom: '', prenom: '', email: '', numero: '' };
+    let rdvDateConfirmed = false;
+    let rdvTimeConfirmed = false;
 
     function resetRdvForm() {
         rdvFormActive = false;
         rdvFormStep = 0;
         rdvFormData = { nom: '', prenom: '', email: '', numero: '' };
+        rdvDateConfirmed = false;
+        rdvTimeConfirmed = false;
     }
 
     function startRdvForm() {
@@ -157,13 +161,14 @@ document.addEventListener('DOMContentLoaded', function () {
             disable: [
                 function(date) { return (date.getDay() === 0 || date.getDay() === 6); }
             ],
-            onChange: function(selectedDates, dateStr) {
-                rdvFormData.date = dateStr;
-                dateInput.style.display = 'none';
-                userInput.style.display = 'block';
-                rdvFormStep = 6;
-                appendMessage("À quelle <b>heure</b> souhaitez-vous votre rendez-vous ?", 'bot');
-                showTimePicker(); // Immediately show the time picker after date selection
+            onClose: function(selectedDates, dateStr) {
+                if (dateStr) {
+                    rdvFormData.date = dateStr;
+                    dateInput.style.display = 'none';
+                    userInput.style.display = 'block';
+                    rdvFormStep = 5.5;
+                    appendMessage(`Vous avez choisi le <b>${dateStr}</b>. Voulez-vous confirmer cette date ? (Oui / Non)`, 'bot');
+                }
             }
         });
     }
@@ -189,34 +194,19 @@ document.addEventListener('DOMContentLoaded', function () {
             maxTime: "18:00",
             minuteIncrement: 30,
             onClose: function(selectedDates, timeStr) {
-                rdvFormData.heure = timeStr;
-                timeInput.style.display = 'none';
-                userInput.style.display = 'block';
-                appendMessage("Merci ! Nous envoyons votre demande de rendez-vous...", 'bot');
-                // Send to backend
-                fetch('http://localhost:3001/book-appointment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(rdvFormData)
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        appendMessage("Votre rendez-vous a bien été enregistré dans notre agenda. Vous serez contacté prochainement ! 😊", 'bot');
-                    } else {
-                        appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
-                    }
-                    resetRdvForm();
-                })
-                .catch(() => {
-                    appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
-                    resetRdvForm();
-                });
+                if (timeStr) {
+                    rdvFormData.heure = timeStr;
+                    timeInput.style.display = 'none';
+                    userInput.style.display = 'block';
+                    rdvFormStep = 6.5;
+                    appendMessage(`Vous avez choisi <b>${timeStr}</b>. Voulez-vous confirmer cette heure ? (Oui / Non)`, 'bot');
+                }
             }
         });
     }
 
     function handleRdvFormInput(text) {
+        const lowerText = text.trim().toLowerCase();
         if (rdvFormStep === 1) {
             rdvFormData.nom = text;
             rdvFormStep = 2;
@@ -234,10 +224,52 @@ document.addEventListener('DOMContentLoaded', function () {
             rdvFormStep = 5;
             appendMessage("Merci ! Pour finir, choisissez une <b>date</b> pour votre rendez-vous :", 'bot');
             showDatePicker();
-        } else if (rdvFormStep === 5) {
-            // Date is picked via showDatePicker, time picker is now shown automatically
-        } else if (rdvFormStep === 6) {
-            // Time is picked via showTimePicker
+        } else if (rdvFormStep === 5.5) {
+            if (lowerText === 'oui') {
+                rdvDateConfirmed = true;
+                rdvFormStep = 6;
+                appendMessage("À quelle <b>heure</b> souhaitez-vous votre rendez-vous ?", 'bot');
+                showTimePicker();
+            } else if (lowerText === 'non') {
+                rdvDateConfirmed = false;
+                rdvFormStep = 5;
+                appendMessage("Veuillez choisir une nouvelle <b>date</b> :", 'bot');
+                showDatePicker();
+            } else {
+                appendMessage("Merci de répondre par 'Oui' ou 'Non' pour confirmer la date.", 'bot');
+            }
+        } else if (rdvFormStep === 6.5) {
+            if (lowerText === 'oui') {
+                rdvTimeConfirmed = true;
+                rdvFormStep = 7;
+                appendMessage("Merci ! Nous envoyons votre demande de rendez-vous...", 'bot');
+                // Send to backend
+                fetch('https://umod-chat-bot-backend.onrender.com/book-appointment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rdvFormData)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        appendMessage("Votre rendez-vous a bien été enregistré dans notre agenda. Vous serez contacté prochainement ! 😊", 'bot');
+                    } else {
+                        appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
+                    }
+                    resetRdvForm();
+                })
+                .catch(() => {
+                    appendMessage("Une erreur est survenue lors de la réservation. Veuillez réessayer plus tard.", 'bot');
+                    resetRdvForm();
+                });
+            } else if (lowerText === 'non') {
+                rdvTimeConfirmed = false;
+                rdvFormStep = 6;
+                appendMessage("Veuillez choisir une nouvelle <b>heure</b> :", 'bot');
+                showTimePicker();
+            } else {
+                appendMessage("Merci de répondre par 'Oui' ou 'Non' pour confirmer l'heure.", 'bot');
+            }
         }
     }
 
@@ -261,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         showTypingIndicator();
-        fetch('http://localhost:3001/chat', {
+        fetch('https://umod-chat-bot-backend.onrender.com/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text })
@@ -287,6 +319,53 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Close button logic
+    // Draggable logic for the chatbot container
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    let initialPosition = { right: 20, bottom: 20 };
+
+    function setInitialPosition() {
+        chatbotContainer.style.right = initialPosition.right + 'px';
+        chatbotContainer.style.bottom = initialPosition.bottom + 'px';
+        chatbotContainer.style.left = '';
+        chatbotContainer.style.top = '';
+    }
+
+    setInitialPosition();
+
+    chatbotContainer.addEventListener('mousedown', function (e) {
+        // Only start drag if not clicking on input or button
+        if (e.target.closest('.chat-input-container') || e.target.closest('button') || e.target.closest('input')) return;
+        isDragging = true;
+        // Get mouse position relative to the container
+        const rect = chatbotContainer.getBoundingClientRect();
+        dragOffsetX = e.clientX - rect.left;
+        dragOffsetY = e.clientY - rect.top;
+        chatbotContainer.style.transition = 'none';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (!isDragging) return;
+        // Move the container
+        let left = e.clientX - dragOffsetX;
+        let top = e.clientY - dragOffsetY;
+        chatbotContainer.style.left = left + 'px';
+        chatbotContainer.style.top = top + 'px';
+        chatbotContainer.style.right = '';
+        chatbotContainer.style.bottom = '';
+    });
+
+    document.addEventListener('mouseup', function () {
+        if (isDragging) {
+            isDragging = false;
+            chatbotContainer.style.transition = '';
+            document.body.style.userSelect = '';
+        }
+    });
+
+    // When closing, reset position
     closeButton.addEventListener('click', function (e) {
         e.stopPropagation();
         chatbotContainer.classList.add('closing');
@@ -295,7 +374,8 @@ document.addEventListener('DOMContentLoaded', function () {
             chatbotContainer.style.display = 'none';
             chatbotContainer.classList.remove('closing');
             bubble.style.display = 'flex';
-        }, 350); // Match the CSS opacity/transform transition duration
+            setInitialPosition(); // Reset position on close
+        }, 350);
     });
 
     // Minimize button logic
